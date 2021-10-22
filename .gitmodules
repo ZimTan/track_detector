@@ -1,0 +1,3 @@
+[submodule "submodules/cnpy"]
+	path = submodules/cnpy
+	url = git@github.com:rogersce/cnpy.git

@@ -113,7 +113,7 @@ void detect(const std::string &path, const std::string &file)
 
         for (size_t r = 200 * cols * 3; r < 350 * cols * 3; r += cols * 3)
         {
-            uint8_t average = get_average(data, r, cols) - 15;
+            uint8_t average = get_average(data, r, cols) + 15;
             std::thread t1(process, data, r, 0, cols * 3 / 2, average);
             std::thread t2(process, data, r, cols * 3 / 2, cols * 3, average);
 

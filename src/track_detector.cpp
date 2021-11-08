@@ -1,6 +1,8 @@
 #include <cerrno>
 #include <iostream>
+#include <dirent.h>
 #include <sys/stat.h>
+#include <string.h>
 #include "cnpy.h"
 #include "track_detector.hh"
 
@@ -40,7 +42,6 @@ int args_check(int argc, char **argv)
 // Create the directory where the segmented image will be saved
 int create_result_dir(const std::string &dir)
 {
-    struct stat st = {0};
     const std::string res_dir = dir + "frag";
 
     if (dir_check(res_dir) == false)
@@ -53,6 +54,56 @@ int create_result_dir(const std::string &dir)
     return 1;
 }
 
+uint8_t get_average(uint8_t *data, const size_t r, const size_t cols)
+{
+    size_t avg = 0;
+
+    for (size_t i = 0; i < cols * 3; ++i)
+        avg += data[r + i];
+
+    return avg / (cols * 3);
+}
+
+void process(uint8_t *data, size_t r, const size_t begin, const size_t end, uint8_t avg)
+{
+    for (size_t c = begin; c < end; ++c)
+    {
+        if (data[r + c] * 0.02125 + data[r + c + 1] * 0.7154 + data[r + c + 2] * 0.0721
+            < avg)
+        {
+            data[r + c++] = 0;
+            data[r + c++] = 0;
+            data[r + c] = 0;
+        }
+        else
+        {
+            data[r + c++] = 255;
+            data[r + c++] = 255;
+            data[r + c] = 255;
+        }
+    }
+}
+
+void detect(const std::string &path, const std::string &file)
+{
+    cnpy::NpyArray arr = cnpy::npy_load(path + file);
+    uint8_t *data = arr.data<uint8_t>();
+    std::vector<size_t> shape = arr.shape;
+    const size_t rows = shape[0];
+    const size_t cols = shape[1];
+
+    if (arr.word_size == sizeof(uint8_t))
+    {
+        for (size_t r = 0; r < rows * cols * 3; r += cols * 3)
+        {
+            uint8_t average = get_average(data, r, cols) - 15;
+            process(data, r, 0, cols * 3, average);
+        }
+    }
+    const std::string res_path = path + "frag/" + file;
+    cnpy::npy_save(res_path, data, {rows, cols, 3}, "w");
+}
+
 int main(int argc, char **argv)
 {
     if (args_check(argc, argv) == 0)
@@ -61,6 +112,17 @@ int main(int argc, char **argv)
     if (create_result_dir(argv[1]) == 0)
         return errno;
 
-    cnpy::npy_load("/home/tanz/Bureau/data_sealcar/32.npy");
+    DIR *dir = opendir(argv[1]);
+    if (dir != NULL)
+    {
+        struct dirent *f = readdir(dir);
+        while (f != NULL)
+        {
+            if (strstr(f->d_name, ".npy") != NULL)
+                detect(argv[1], f->d_name);
+            f = readdir(dir);
+        }
+    }
+
     return 0;
 }

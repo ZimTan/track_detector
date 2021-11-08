@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <iostream>
+#include <thread>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <string.h>
@@ -64,6 +65,19 @@ uint8_t get_average(uint8_t *data, const size_t r, const size_t cols)
     return avg / (cols * 3);
 }
 
+void darken(uint8_t *data, const size_t cols, const size_t begin, const size_t end)
+{
+    for (size_t r = begin; r < end * cols * 3; r += cols * 3)
+    {
+        for (size_t c = 0; c < cols * 3; ++c)
+        {
+            data[r + c++] = 0;
+            data[r + c++] = 0;
+            data[r + c] = 0;
+        }
+    }
+}
+
 void process(uint8_t *data, size_t r, const size_t begin, const size_t end, uint8_t avg)
 {
     for (size_t c = begin; c < end; ++c)
@@ -94,7 +108,10 @@ void detect(const std::string &path, const std::string &file)
 
     if (arr.word_size == sizeof(uint8_t))
     {
-        for (size_t r = 0; r < rows * cols * 3; r += cols * 3)
+        darken(data, cols, 0, 200);
+        darken(data, cols, 350 * cols * 3, rows);
+
+        for (size_t r = 200 * cols * 3; r < 350 * cols * 3; r += cols * 3)
         {
             uint8_t average = get_average(data, r, cols) - 15;
             process(data, r, 0, cols * 3, average);

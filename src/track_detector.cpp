@@ -108,14 +108,21 @@ void detect(const std::string &path, const std::string &file)
 
     if (arr.word_size == sizeof(uint8_t))
     {
-        darken(data, cols, 0, 200);
-        darken(data, cols, 350 * cols * 3, rows);
+        std::thread t1(darken, data, cols, 0, 200);
+        std::thread t2(darken, data, cols, 350 * cols * 3, rows);
 
         for (size_t r = 200 * cols * 3; r < 350 * cols * 3; r += cols * 3)
         {
             uint8_t average = get_average(data, r, cols) - 15;
-            process(data, r, 0, cols * 3, average);
+            std::thread t1(process, data, r, 0, cols * 3 / 2, average);
+            std::thread t2(process, data, r, cols * 3 / 2, cols * 3, average);
+
+            t1.join();
+            t2.join();
         }
+
+        t1.join();
+        t2.join();
     }
     const std::string res_path = path + "frag/" + file;
     cnpy::npy_save(res_path, data, {rows, cols, 3}, "w");
